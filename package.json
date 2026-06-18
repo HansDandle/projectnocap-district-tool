@@ -1,0 +1,13 @@
+{
+  "name": "nocapcalc",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Project No Cap district apportionment calculator",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.101.0"
+  }
+}

@@ -1,0 +1,8 @@
+node_modules/
+.wrangler/
+.wrangler-dev.log
+*.log
+.dev.vars
+.DS_Store
+_check.js
+_turftest/

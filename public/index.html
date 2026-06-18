@@ -1,0 +1,1199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Your District Under Different Rules | Project No Cap</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #000000;
+      --bg-card:   #111111;
+      --bg-card2:  #0d0d0d;
+      --border:    #252525;
+      --border2:   #1a1a1a;
+      --text:      #ffffff;
+      --muted:     #777777;
+      --muted2:    #444444;
+      --red:       #C8102E;
+      --red-dark:  #960c22;
+      --blue:      #002868;
+      --gold:      #d4a017;
+      --green:     #27ae60;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    /* ─── HEADER ─────────────────────────────────── */
+    .site-header {
+      border-bottom: 1px solid var(--border);
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .site-header .logo {
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      text-decoration: none;
+      color: var(--muted);
+    }
+    .site-header .logo span { color: var(--red); }
+    .site-header .back-link {
+      font-size: 11px;
+      color: var(--muted);
+      text-decoration: none;
+      letter-spacing: 0.08em;
+    }
+    .site-header .back-link:hover { color: var(--text); }
+
+    /* ─── HERO ───────────────────────────────────── */
+    .hero {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 72px 24px 56px;
+      text-align: center;
+    }
+    .hero-eyebrow {
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--red);
+      margin-bottom: 16px;
+    }
+    .hero h1 {
+      font-size: clamp(2.4rem, 6vw, 4rem);
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: -0.025em;
+      line-height: 1.05;
+      margin-bottom: 20px;
+    }
+    .hero p {
+      font-size: 1.05rem;
+      color: var(--muted);
+      max-width: 520px;
+      margin: 0 auto 40px;
+      line-height: 1.6;
+    }
+
+    /* ─── SEARCH ──────────────────────────────────── */
+    .search-wrap {
+      display: flex;
+      gap: 8px;
+      max-width: 540px;
+      margin: 0 auto;
+    }
+    .search-input {
+      flex: 1;
+      background: #0e0e0e;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 14px 18px;
+      font-size: 1rem;
+      font-family: inherit;
+      border-radius: 3px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .search-input:focus { border-color: var(--red); }
+    .search-input::placeholder { color: var(--muted2); }
+    .search-btn {
+      background: var(--red);
+      color: #fff;
+      border: none;
+      padding: 14px 26px;
+      font-size: 0.82rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      cursor: pointer;
+      border-radius: 3px;
+      font-family: inherit;
+      transition: background 0.15s;
+      white-space: nowrap;
+    }
+    .search-btn:hover:not(:disabled) { background: var(--red-dark); }
+    .search-btn:disabled { background: #333; cursor: not-allowed; }
+
+    .error-box {
+      background: #160508;
+      border: 1px solid #3a0e13;
+      color: #f08090;
+      padding: 13px 18px;
+      border-radius: 3px;
+      max-width: 540px;
+      margin: 20px auto 0;
+      font-size: 0.9rem;
+      text-align: left;
+    }
+    .error-box.hidden { display: none; }
+
+    /* ─── LOADING ─────────────────────────────────── */
+    .loading-wrap {
+      text-align: center;
+      padding: 80px 24px;
+      color: var(--muted);
+    }
+    .loading-wrap.hidden { display: none; }
+    .spinner {
+      width: 36px; height: 36px;
+      border: 3px solid #1e1e1e;
+      border-top-color: var(--red);
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+      margin: 0 auto 14px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ─── RESULTS ─────────────────────────────────── */
+    .results-wrap {
+      max-width: 1140px;
+      margin: 0 auto;
+      padding: 0 24px 80px;
+    }
+    .results-wrap.hidden { display: none; }
+
+    /* District header */
+    .district-head {
+      text-align: center;
+      padding: 48px 0 36px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 32px;
+    }
+    .district-head .tag {
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--red);
+      margin-bottom: 10px;
+    }
+    .district-head h2 {
+      font-size: clamp(1.6rem, 4vw, 2.8rem);
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: -0.02em;
+    }
+    .district-head .matched-addr {
+      color: var(--muted);
+      font-size: 0.82rem;
+      margin-top: 8px;
+    }
+
+    /* Map */
+    .map-outer {
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      overflow: hidden;
+      height: 380px;
+      margin-bottom: 28px;
+      position: relative;
+    }
+    #district-map { height: 100%; width: 100%; }
+    .map-note {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      background: rgba(0,0,0,0.75);
+      color: var(--muted);
+      font-size: 0.7rem;
+      padding: 4px 8px;
+      border-radius: 2px;
+      z-index: 999;
+      pointer-events: none;
+    }
+
+    /* Size-preview controls */
+    .size-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+    .size-controls.hidden { display: none; }
+    .size-controls .sc-label {
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: var(--muted);
+      margin-right: 4px;
+    }
+    .size-pill {
+      background: #0e0e0e;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 7px 13px;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: color 0.15s, border-color 0.15s, background 0.15s;
+    }
+    .size-pill:hover { color: var(--text); border-color: var(--muted2); }
+    .size-pill.active { background: var(--red); border-color: var(--red); color: #fff; }
+
+    /* Stats bar */
+    .stats-bar {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      overflow: hidden;
+      margin-bottom: 52px;
+    }
+    .stat-cell {
+      background: var(--bg-card);
+      padding: 20px 22px;
+    }
+    .stat-cell .s-label {
+      font-size: 9px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: var(--muted);
+      margin-bottom: 7px;
+    }
+    .stat-cell .s-value {
+      font-size: 1.55rem;
+      font-weight: 900;
+      letter-spacing: -0.025em;
+      line-height: 1;
+    }
+    .stat-cell .s-value.red { color: var(--red); }
+
+    /* Section label */
+    .section-label {
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 18px;
+    }
+
+    /* Rule cards */
+    .rule-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      overflow: hidden;
+      margin-bottom: 28px;
+    }
+    .rule-card {
+      background: var(--bg-card);
+      padding: 26px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      position: relative;
+      transition: background 0.15s;
+    }
+    .rule-card:hover { background: #161616; }
+    .rule-card.is-current { background: var(--bg-card2); }
+    .rule-card.is-featured { background: #120508; }
+
+    .rc-tag {
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .rc-tag.red { color: var(--red); }
+    .rc-tag.gold { color: var(--gold); }
+
+    .rc-name {
+      font-size: 0.95rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      margin-bottom: 18px;
+    }
+
+    .rc-seats {
+      font-size: 2.8rem;
+      font-weight: 900;
+      letter-spacing: -0.04em;
+      line-height: 1;
+      margin-bottom: 3px;
+    }
+    .rc-seats.red { color: var(--red); }
+    .rc-seats-label {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: var(--muted);
+      margin-bottom: 18px;
+    }
+
+    .rc-divider { height: 1px; background: var(--border2); margin: 14px 0; }
+
+    .rc-minis {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 14px;
+    }
+    .rc-mini .rm-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+      margin-bottom: 3px;
+    }
+    .rc-mini .rm-val {
+      font-size: 1rem;
+      font-weight: 700;
+    }
+
+    .rc-badge {
+      display: inline-block;
+      border: 1px solid var(--border);
+      padding: 4px 9px;
+      border-radius: 2px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+    .rc-badge.up { border-color: #1e3a1e; color: var(--green); }
+    .rc-badge.way-up { border-color: #2a3a00; color: #8bc34a; }
+
+    /* Scale bar — measured against the 1910 standard */
+    .rc-scale-wrap { margin-bottom: 14px; }
+    .rc-scale-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      margin-bottom: 5px;
+    }
+    .rc-scale-bar {
+      height: 4px;
+      background: var(--border2);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .rc-scale-fill {
+      height: 100%;
+      background: var(--red);
+      border-radius: 2px;
+      transition: width 0.6s ease;
+    }
+    .rc-scale-fill.met { background: var(--gold); }
+    .is-current .rc-scale-fill { background: var(--muted2); }
+
+    .rc-desc {
+      font-size: 0.78rem;
+      color: var(--muted);
+      line-height: 1.55;
+      margin-top: auto;
+      padding-top: 8px;
+    }
+
+    /* Countries panel */
+    .countries-panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      overflow: hidden;
+      margin-bottom: 28px;
+    }
+    .countries-panel summary {
+      padding: 16px 22px;
+      cursor: pointer;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--muted);
+      list-style: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      user-select: none;
+      transition: color 0.15s;
+    }
+    .countries-panel summary:hover { color: var(--text); }
+    .countries-panel summary::before { content: '▶'; font-size: 0.6rem; }
+    .countries-panel[open] summary::before { content: '▼'; }
+    .countries-inner {
+      border-top: 1px solid var(--border);
+      padding: 20px 22px;
+    }
+    .countries-note {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-bottom: 16px;
+    }
+    .countries-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 1px;
+      background: var(--border2);
+    }
+    .country-row {
+      background: var(--bg-card2);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      font-size: 0.78rem;
+    }
+    .country-row .cr-name { color: var(--muted); }
+    .country-row .cr-ratio { font-weight: 700; }
+    .country-row.is-median .cr-name { color: var(--gold); }
+    .country-row.is-median .cr-ratio { color: var(--gold); }
+    .country-row .cr-us { color: var(--red); font-weight: 700; }
+
+    /* CTA */
+    .cta-block {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 48px 40px;
+      text-align: center;
+    }
+    .cta-block h3 {
+      font-size: 1.6rem;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: -0.01em;
+      margin-bottom: 12px;
+    }
+    .cta-block p {
+      color: var(--muted);
+      max-width: 480px;
+      margin: 0 auto 28px;
+      font-size: 0.95rem;
+    }
+    .cta-link {
+      display: inline-block;
+      background: var(--red);
+      color: #fff;
+      text-decoration: none;
+      padding: 14px 32px;
+      font-size: 0.82rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      border-radius: 3px;
+      transition: background 0.15s;
+    }
+    .cta-link:hover { background: var(--red-dark); }
+
+    /* Footer */
+    .site-footer {
+      border-top: 1px solid var(--border);
+      padding: 22px 24px;
+      text-align: center;
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+    .site-footer a { color: var(--muted); text-decoration: none; }
+    .site-footer a:hover { color: var(--text); }
+
+    /* Leaflet dark tiles */
+    .leaflet-tile {
+      filter: brightness(0.55) invert(1) contrast(1.4) hue-rotate(180deg) brightness(0.55) saturate(0.5);
+    }
+    .leaflet-container { background: #0a0a0a; }
+    .leaflet-control-attribution { background: rgba(0,0,0,0.6) !important; color: #555 !important; }
+    .leaflet-control-attribution a { color: #666 !important; }
+
+    /* Utilities */
+    .hidden { display: none !important; }
+
+    /* ─── RESPONSIVE ──────────────────────────────── */
+    @media (max-width: 900px) {
+      .rule-grid { grid-template-columns: repeat(2, 1fr); }
+      .stats-bar { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 560px) {
+      .hero { padding: 48px 16px 40px; }
+      .search-wrap { flex-direction: column; }
+      .rule-grid { grid-template-columns: 1fr; }
+      .stats-bar { grid-template-columns: 1fr 1fr; }
+      .rc-minis { flex-wrap: wrap; gap: 12px; }
+      .cta-block { padding: 32px 20px; }
+      .results-wrap { padding: 0 16px 60px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="site-header">
+  <a href="https://www.projectnocap.com" class="logo">Project <span>No Cap</span></a>
+  <a href="https://www.projectnocap.com" class="back-link">← Back to projectnocap.com</a>
+</header>
+
+<!-- HERO / SEARCH -->
+<section class="hero">
+  <div class="hero-eyebrow">Interactive District Tool</div>
+  <h1>Your District.<br/>Different Rules.</h1>
+  <p>Enter your address or ZIP code to see your current Congressional district — and what it would look like under seven different apportionment models.</p>
+  <div class="search-wrap">
+    <input
+      type="text"
+      id="addr-input"
+      class="search-input"
+      placeholder="123 Main St, Denver, CO — or just 80203"
+      autocomplete="off"
+      autocorrect="off"
+      spellcheck="false"
+    />
+    <button id="search-btn" class="search-btn">Look Up</button>
+  </div>
+  <div id="error-box" class="error-box hidden"></div>
+</section>
+
+<!-- LOADING -->
+<div id="loading-wrap" class="loading-wrap hidden">
+  <div class="spinner"></div>
+  <p>Looking up your district…</p>
+</div>
+
+<!-- RESULTS -->
+<div id="results-wrap" class="results-wrap hidden">
+
+  <!-- District header -->
+  <div class="district-head">
+    <div class="tag">Your Congressional District</div>
+    <h2 id="dh-name">—</h2>
+    <div class="matched-addr" id="dh-addr"></div>
+  </div>
+
+  <!-- Map + size-preview controls -->
+  <div class="size-controls hidden" id="size-controls">
+    <span class="sc-label">Resize my district under:</span>
+  </div>
+  <div class="map-outer">
+    <div id="district-map"></div>
+    <div class="map-note" id="map-note">District boundary from U.S. Census TIGERweb</div>
+  </div>
+
+  <!-- Stats bar -->
+  <div class="stats-bar">
+    <div class="stat-cell">
+      <div class="s-label">Your District Population</div>
+      <div class="s-value" id="st-pop">—</div>
+    </div>
+    <div class="stat-cell">
+      <div class="s-label">U.S. Average District Pop.</div>
+      <div class="s-value red">761,952</div>
+    </div>
+    <div class="stat-cell">
+      <div class="s-label">Current House Size</div>
+      <div class="s-value">435</div>
+    </div>
+    <div class="stat-cell">
+      <div class="s-label">Your State's Seats</div>
+      <div class="s-value" id="st-state-seats">—</div>
+    </div>
+  </div>
+
+  <!-- Rule cards -->
+  <div class="section-label">What the House would look like under different rules</div>
+  <div class="rule-grid" id="rule-grid"></div>
+
+  <!-- Countries detail -->
+  <details class="countries-panel" id="countries-panel">
+    <summary>Global Median — methodology &amp; country list</summary>
+    <div class="countries-inner">
+      <div class="countries-note">
+        Median people per lower-house seat across 22 democracies with bicameral legislatures (IPU data, 2021–2023 populations).
+        Starred rows are the two median countries. The U.S. is shown for comparison.
+      </div>
+      <div class="countries-grid" id="countries-grid"></div>
+    </div>
+  </details>
+
+  <!-- CTA -->
+  <div class="cta-block">
+    <h3>Tell Congress to Uncap the House</h3>
+    <p>No matter which formula you prefer, 435 is not enough. The cap hasn't moved since 1929. It can change with a simple bill — no constitutional amendment required.</p>
+    <a href="https://www.projectnocap.com/takeaction#emailyourrep" class="cta-link">Email Your Representative →</a>
+  </div>
+
+</div><!-- /results-wrap -->
+
+<footer class="site-footer">
+  Population: 2020 U.S. Census apportionment counts (district size = state population ÷ seats, the legal equal-population standard).
+  District geometry: U.S. Census TIGERweb (119th Congress). &nbsp;|&nbsp;
+  <a href="https://www.projectnocap.com">Project No Cap</a> is a non-partisan 501(c)(4).
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@turf/turf@7.1.0/turf.min.js"></script>
+<script>
+'use strict';
+
+// ════════════════════════════════════════════════
+//  CONSTANTS
+// ════════════════════════════════════════════════
+const US_POP = 331449281;   // 2020 apportionment population (50 states + DC)
+const WY_POP = 576851;      // Wyoming, the least-populous state (2020)
+const LASTAPP_POP = 210000; // ~avg district at the 1911 reapportionment (1910 census ÷ 435), the last time the House grew
+const LASTAPP_SEATS = Math.floor(331449281 / LASTAPP_POP); // 1,578 — the scale-bar benchmark
+const CURRENT_SEATS = 435;
+
+// 2020 Census state populations (resident), keyed by FIPS code (zero-padded 2-digit)
+const STATE_POPS = {
+  '01':5024279,'02':733391,'04':7151502,'05':3011524,'06':39538223,
+  '08':5773714,'09':3605944,'10':989948,'11':689545,'12':21538187,
+  '13':10711908,'15':1455271,'16':1839106,'17':12812508,'18':6785528,
+  '19':3190369,'20':2937880,'21':4505836,'22':4657757,'23':1362359,
+  '24':6177224,'25':7029917,'26':10077331,'27':5706494,'28':2961279,
+  '29':6154913,'30':1084225,'31':1961504,'32':3104614,'33':1377529,
+  '34':9288994,'35':2117522,'36':20201249,'37':10439388,'38':779094,
+  '39':11799448,'40':3959353,'41':4237256,'42':13002700,'44':1097379,
+  '45':5118425,'46':886667,'47':6910840,'48':29145505,'49':3271616,
+  '50':643077,'51':8631393,'53':7705281,'54':1793716,'55':5893718,
+  '56':576851
+};
+
+// State FIPS → abbreviation
+const FIPS_TO_ABBR = {
+  '01':'AL','02':'AK','04':'AZ','05':'AR','06':'CA','08':'CO','09':'CT',
+  '10':'DE','11':'DC','12':'FL','13':'GA','15':'HI','16':'ID','17':'IL',
+  '18':'IN','19':'IA','20':'KS','21':'KY','22':'LA','23':'ME','24':'MD',
+  '25':'MA','26':'MI','27':'MN','28':'MS','29':'MO','30':'MT','31':'NE',
+  '32':'NV','33':'NH','34':'NJ','35':'NM','36':'NY','37':'NC','38':'ND',
+  '39':'OH','40':'OK','41':'OR','42':'PA','44':'RI','45':'SC','46':'SD',
+  '47':'TN','48':'TX','49':'UT','50':'VT','51':'VA','53':'WA','54':'WV',
+  '55':'WI','56':'WY'
+};
+
+// State FIPS → full name
+const FIPS_TO_NAME = {
+  '01':'Alabama','02':'Alaska','04':'Arizona','05':'Arkansas','06':'California',
+  '08':'Colorado','09':'Connecticut','10':'Delaware','11':'District of Columbia',
+  '12':'Florida','13':'Georgia','15':'Hawaii','16':'Idaho','17':'Illinois',
+  '18':'Indiana','19':'Iowa','20':'Kansas','21':'Kentucky','22':'Louisiana',
+  '23':'Maine','24':'Maryland','25':'Massachusetts','26':'Michigan',
+  '27':'Minnesota','28':'Mississippi','29':'Missouri','30':'Montana',
+  '31':'Nebraska','32':'Nevada','33':'New Hampshire','34':'New Jersey',
+  '35':'New Mexico','36':'New York','37':'North Carolina','38':'North Dakota',
+  '39':'Ohio','40':'Oklahoma','41':'Oregon','42':'Pennsylvania',
+  '44':'Rhode Island','45':'South Carolina','46':'South Dakota',
+  '47':'Tennessee','48':'Texas','49':'Utah','50':'Vermont','51':'Virginia',
+  '53':'Washington','54':'West Virginia','55':'Wisconsin','56':'Wyoming'
+};
+
+// Peer bicameral democracies [name, lower_house_seats, population]
+const PEER_COUNTRIES = [
+  ['Argentina',257,45600000],['Australia',151,25500000],['Belgium',150,11600000],
+  ['Brazil',513,215000000],['Canada',338,38200000],['Czech Republic',200,10900000],
+  ['France',577,67700000],['Germany',736,83800000],['India',543,1400000000],
+  ['Italy',400,60300000],['Japan',465,125500000],['Malaysia',222,32500000],
+  ['Mexico',500,130000000],['Netherlands',150,17600000],['Nigeria',360,218000000],
+  ['Pakistan',336,221000000],['Poland',460,37900000],['Romania',330,19000000],
+  ['South Africa',400,59900000],['Spain',350,47500000],['Switzerland',200,8700000],
+  ['United Kingdom',650,67500000]
+];
+
+// Compute median people-per-seat across peer democracies
+const countriesSorted = PEER_COUNTRIES
+  .map(([name, seats, pop]) => ({ name, seats, pop, ratio: Math.round(pop / seats) }))
+  .sort((a, b) => a.ratio - b.ratio);
+
+const N = countriesSorted.length; // 22 — even number
+const MEDIAN_RATIO = Math.round(
+  (countriesSorted[N/2 - 1].ratio + countriesSorted[N/2].ratio) / 2
+);
+
+// ════════════════════════════════════════════════
+//  APPORTIONMENT (Huntington–Hill, the real method)
+// ════════════════════════════════════════════════
+// DC ('11') is not apportioned voting seats — exclude it from the pool.
+const APPORTION_POPS = Object.fromEntries(
+  Object.entries(STATE_POPS).filter(([fips]) => fips !== '11')
+);
+const _hhCache = {};
+
+// Returns { fips: seats } distributing `total` seats among the 50 states.
+function huntingtonHill(total) {
+  if (_hhCache[total]) return _hhCache[total];
+  const fipsList = Object.keys(APPORTION_POPS);
+  const seats = {};
+  fipsList.forEach(f => { seats[f] = 1; });        // every state gets 1 first
+  let assigned = fipsList.length;
+  while (assigned < total) {
+    let bestFips = null, bestPriority = -1;
+    for (const f of fipsList) {
+      const n = seats[f];
+      const priority = APPORTION_POPS[f] / Math.sqrt(n * (n + 1));
+      if (priority > bestPriority) { bestPriority = priority; bestFips = f; }
+    }
+    seats[bestFips]++;
+    assigned++;
+  }
+  return (_hhCache[total] = seats);
+}
+
+// Seats for one state under a House of `total` (DC handled via the per-seat ratio).
+function stateSeatsFor(fips, total, popPerSeat) {
+  if (fips === '11') return Math.max(1, Math.round(STATE_POPS['11'] / popPerSeat));
+  return huntingtonHill(total)[fips] || 1;
+}
+
+// A single district's population today = state pop ÷ that state's seats.
+function currentDistrictPop(fips) {
+  if (fips === '11') return STATE_POPS['11'];      // DC = one (delegate) district
+  return Math.round(STATE_POPS[fips] / huntingtonHill(CURRENT_SEATS)[fips]);
+}
+
+// ════════════════════════════════════════════════
+//  RULES
+// ════════════════════════════════════════════════
+function buildRules(fips) {
+  // Ordered: status quo first, then ascending by House size.
+  const defs = [
+    {
+      id: 'current', tag: 'Status Quo', tagClass: '',
+      name: 'Current Law (435)', seats: CURRENT_SEATS,
+      isCurrent: true, isFeatured: false,
+      desc: "The House has been capped at 435 seats since 1929, when the U.S. population was about 106 million. No Congress has lifted the cap since.",
+    },
+    {
+      id: 'wyoming', tag: 'Common Proposal', tagClass: '',
+      name: 'Wyoming Rule', seats: Math.floor(US_POP / WY_POP),
+      isCurrent: false, isFeatured: false,
+      desc: "Size the House so the average district equals Wyoming's population — the least-populous state. No district would be larger than Wyoming's ~577k residents.",
+    },
+    {
+      id: 'cuberoot', tag: 'Mathematical', tagClass: '',
+      name: 'Cube Root Rule', seats: Math.round(Math.cbrt(US_POP)),
+      isCurrent: false, isFeatured: false,
+      desc: `Set the legislature's size at the cube root of the population — an empirical pattern across many democracies. For the U.S.: ∛331M ≈ ${fmt(Math.round(Math.cbrt(US_POP)))} seats.`,
+    },
+    {
+      id: 'wyoming2', tag: 'Common Proposal', tagClass: '',
+      name: 'Wyoming Rule ÷ 2', seats: Math.floor(US_POP / (WY_POP / 2)),
+      isCurrent: false, isFeatured: false,
+      desc: "Half of Wyoming's population as the target district size. A middle-ground proposal that roughly doubles representation while staying operationally feasible.",
+    },
+    {
+      id: 'lastapp', tag: 'Last Reapportionment', tagClass: 'gold',
+      name: '1910 Average District', seats: Math.floor(US_POP / LASTAPP_POP),
+      isCurrent: false, isFeatured: false,
+      desc: "1910 was the last time the House actually grew with the country, before the 1929 cap. The average district then held about 210,000 people. Matching that ratio today would seat ~1,578 members.",
+    },
+    {
+      id: 'peer', tag: 'International Benchmark', tagClass: 'red',
+      name: 'Global Median', seats: Math.round(US_POP / MEDIAN_RATIO),
+      isCurrent: false, isFeatured: true,
+      desc: `Median people-per-seat across ${N} peer democracies with bicameral legislatures (e.g., Canada ~113k, UK ~104k, Germany ~114k). The U.S. is a dramatic outlier at ~762k.`,
+    },
+    {
+      id: 'madison', tag: "Founders' Intent", tagClass: 'gold',
+      name: "Madison's 1:30,000", seats: Math.round(US_POP / 30000),
+      isCurrent: false, isFeatured: false,
+      desc: "George Washington's only intervention at the Constitutional Convention was a warning: don't let districts exceed 30,000 people. This rule restores the Founders' original ratio.",
+    },
+  ];
+
+  return defs.map(d => {
+    const popPerSeat = Math.round(US_POP / d.seats);
+    return { ...d, popPerSeat, stateSeats: stateSeatsFor(fips, d.seats, popPerSeat) };
+  });
+}
+
+// ════════════════════════════════════════════════
+//  FORMATTING
+// ════════════════════════════════════════════════
+function fmt(n) { return n.toLocaleString('en-US'); }
+
+function ordinal(n) {
+  const s = ['th','st','nd','rd'];
+  const v = n % 100;
+  return n + (s[(v-20)%10] || s[v] || s[0]);
+}
+
+function districtLabel(fips, cdCode) {
+  const state = FIPS_TO_NAME[fips] || 'Your State';
+  if (fips === '11') return `${state} — Delegate (non-voting)`;
+  if (cdCode === '00' || cdCode === '98') return `${state} — At-Large District`;
+  return `${state} — ${ordinal(parseInt(cdCode, 10))} District`;
+}
+
+function badgeText(rule) {
+  if (rule.isCurrent) return 'Status quo today';
+  const pct = Math.round((rule.seats / CURRENT_SEATS - 1) * 100);
+  return pct >= 0 ? `↑ ${pct}% more seats than today` : `↓ ${Math.abs(pct)}% fewer seats than today`;
+}
+
+function badgeClass(rule) {
+  if (rule.isCurrent) return '';
+  const mult = rule.seats / CURRENT_SEATS;
+  if (mult >= 5) return 'way-up';
+  if (mult > 1)  return 'up';
+  return '';
+}
+
+// ════════════════════════════════════════════════
+//  MAP
+// ════════════════════════════════════════════════
+let leafletMap = null;
+let baseLayer = null;     // faint reference outline of the real current district
+let previewLayer = null;  // red outline, resized to the selected rule's footprint
+let searchMarker = null;
+
+// Geometry/state captured from the last successful search, used by the resize pills.
+const mapState = { geojson: null, center: null, fips: null, currentSeats: null };
+
+function initOrResetMap(lat, lng) {
+  if (leafletMap) { leafletMap.remove(); leafletMap = null; baseLayer = previewLayer = searchMarker = null; }
+  leafletMap = L.map('district-map', { center: [lat, lng], zoom: 8 });
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://openstreetmap.org">OpenStreetMap</a>',
+    maxZoom: 18,
+  }).addTo(leafletMap);
+}
+
+// Draw the real district faintly and frame the map to it (frame stays fixed while resizing).
+function setBaseDistrict(geojson) {
+  baseLayer = L.geoJSON(geojson, {
+    style: { color: '#555', weight: 1, dashArray: '4 4', fillColor: '#888', fillOpacity: 0.04 }
+  }).addTo(leafletMap);
+  try { leafletMap.fitBounds(baseLayer.getBounds(), { padding: [40, 40] }); } catch (_) {}
+}
+
+function clearPreview() {
+  if (previewLayer) { leafletMap.removeLayer(previewLayer); previewLayer = null; }
+}
+
+// Draw the real district outline (used for the "Current (actual)" pill).
+function drawActualPreview() {
+  clearPreview();
+  previewLayer = L.geoJSON(mapState.geojson, {
+    style: { color: '#C8102E', weight: 2, fillColor: '#C8102E', fillOpacity: 0.15 }
+  }).addTo(leafletMap);
+  if (searchMarker) searchMarker.bringToFront();
+}
+
+// Fetch tracts around the user (expanding the box until we capture enough people),
+// then greedily grow a compact, contiguous region to the target population.
+async function growDistrict(target) {
+  const [lng, lat] = mapState.center;
+  let half = 0.07, features = [];
+
+  for (let i = 0; i < 5; i++) {
+    const bbox = `${lng - half},${lat - half},${lng + half},${lat + half}`;
+    const res = await fetch(`/api/tracts?bbox=${bbox}&state=${mapState.fips}`);
+    const data = await res.json();
+    features = data.features || [];
+    const captured = features.reduce((a, f) => a + (+f.properties.POP100 || 0), 0);
+    if (captured >= target * 1.25 || features.length > 500) break;
+    half *= 1.8;
+  }
+  if (!features.length) return null;
+
+  // Precompute each tract's centroid + population.
+  const items = features.map(f => {
+    let c;
+    try { c = turf.centroid(f).geometry.coordinates; }
+    catch (_) { const b = turf.bbox(f); c = [(b[0] + b[2]) / 2, (b[1] + b[3]) / 2]; }
+    return { f, cx: c[0], cy: c[1], pop: +f.properties.POP100 || 0, used: false };
+  });
+
+  // Seed with the tract nearest the user, then annex the nearest unused tract
+  // to the growing cluster until we reach the target population.
+  let seed = items[0], best = Infinity;
+  for (const it of items) {
+    const d = (it.cx - lng) ** 2 + (it.cy - lat) ** 2;
+    if (d < best) { best = d; seed = it; }
+  }
+  seed.used = true;
+  const picked = [seed];
+  let pop = seed.pop;
+
+  while (pop < target) {
+    let cand = null, cbest = Infinity;
+    for (const it of items) {
+      if (it.used) continue;
+      let d = Infinity;
+      for (const p of picked) {
+        const dd = (it.cx - p.cx) ** 2 + (it.cy - p.cy) ** 2;
+        if (dd < d) d = dd;
+      }
+      if (d < cbest) { cbest = d; cand = it; }
+    }
+    if (!cand) break;
+    cand.used = true; picked.push(cand); pop += cand.pop;
+  }
+  return { picked, pop };
+}
+
+// Render the grown region: faint filled tracts + a crisp dissolved outer boundary.
+function drawGrownPreview(picked) {
+  clearPreview();
+  const group = L.layerGroup();
+
+  const fc = { type: 'FeatureCollection', features: picked.map(p => p.f) };
+  L.geoJSON(fc, {
+    style: { color: '#C8102E', weight: 0.5, opacity: 0.25, fillColor: '#C8102E', fillOpacity: 0.16 }
+  }).addTo(group);
+
+  // Dissolve all tracts into one outline in a single pass (fast, clean boundary);
+  // fall back silently to just the fills if the union ever fails.
+  try {
+    const merged = turf.union(turf.featureCollection(picked.map(p => p.f)));
+    if (merged) {
+      L.geoJSON(merged, {
+        style: { color: '#C8102E', weight: 2.5, fill: false }
+      }).addTo(group);
+    }
+  } catch (_) { /* fills alone still read as a region */ }
+
+  previewLayer = group.addTo(leafletMap);
+  if (searchMarker) searchMarker.bringToFront();
+}
+
+function placeMarker(lat, lng) {
+  searchMarker = L.circleMarker([lat, lng], {
+    radius: 7, color: '#ffffff', weight: 2, fillColor: '#C8102E', fillOpacity: 1
+  }).addTo(leafletMap);
+  searchMarker.bringToFront();
+}
+
+// Build the resize pills (one per rule) and wire them to the map.
+function buildSizeControls(fips) {
+  const controls = document.getElementById('size-controls');
+  // Drop any pills from a previous search, keep the leading label.
+  controls.querySelectorAll('.size-pill').forEach(el => el.remove());
+
+  if (!mapState.geojson) { controls.classList.add('hidden'); return; }
+  controls.classList.remove('hidden');
+
+  const rules = buildRules(fips);
+  rules.forEach(rule => {
+    const pill = document.createElement('button');
+    pill.className = 'size-pill';
+    pill.textContent = rule.isCurrent ? 'Current (actual)' : rule.name;
+    pill.addEventListener('click', () => selectSize(rule, pill));
+    controls.appendChild(pill);
+    if (rule.isCurrent) selectSize(rule, pill); // default selection
+  });
+}
+
+let drawToken = 0;
+
+async function selectSize(rule, pill) {
+  document.querySelectorAll('.size-pill').forEach(p => p.classList.remove('active'));
+  pill.classList.add('active');
+  const note = document.getElementById('map-note');
+
+  const target = mapState.fips === '11'
+    ? Math.round(STATE_POPS['11'] / rule.stateSeats)
+    : Math.round(STATE_POPS[mapState.fips] / rule.stateSeats);
+
+  // "Current (actual)" just shows the real boundary; no district to invent.
+  if (rule.isCurrent) {
+    drawToken++;
+    drawActualPreview();
+    note.textContent = `Actual district boundary · ${fmt(target)} residents`;
+    return;
+  }
+
+  const myToken = ++drawToken;
+  note.textContent = `Drawing a possible ${rule.name} district…`;
+  try {
+    const result = await growDistrict(target);
+    if (myToken !== drawToken) return; // a newer click superseded this one
+    if (!result) { note.textContent = 'Could not draw a district here — try another rule.'; return; }
+    drawGrownPreview(result.picked);
+    note.textContent =
+      `One way a ${rule.name} district could be drawn · ~${fmt(result.pop)} residents ` +
+      `(target ${fmt(target)}) · built from ${result.picked.length} census tracts`;
+  } catch (err) {
+    if (myToken !== drawToken) return;
+    note.textContent = 'Could not draw a district here — try another rule.';
+  }
+}
+
+// ════════════════════════════════════════════════
+//  RENDER
+// ════════════════════════════════════════════════
+function renderHeader(fips, cdCode, matchedAddress) {
+  document.getElementById('dh-name').textContent = districtLabel(fips, cdCode);
+  document.getElementById('dh-addr').textContent = matchedAddress || '';
+}
+
+function renderStats(fips) {
+  document.getElementById('st-pop').textContent = fmt(currentDistrictPop(fips));
+  const stateSeats = stateSeatsFor(fips, CURRENT_SEATS, Math.round(US_POP / CURRENT_SEATS));
+  const abbr = FIPS_TO_ABBR[fips] || '?';
+  document.getElementById('st-state-seats').textContent = `${stateSeats} (${abbr})`;
+}
+
+function renderRuleCards(fips) {
+  const rules = buildRules(fips);
+  const container = document.getElementById('rule-grid');
+  container.innerHTML = '';
+
+  rules.forEach(rule => {
+    const pct = Math.round((rule.seats / LASTAPP_SEATS) * 100);
+    const barPct = Math.min(100, pct);
+    const met = pct >= 100 && !rule.isCurrent;
+    const card = document.createElement('div');
+    card.className = `rule-card${rule.isCurrent ? ' is-current' : ''}${rule.isFeatured ? ' is-featured' : ''}`;
+    card.innerHTML = `
+      <div class="rc-tag ${rule.tagClass}">${rule.tag}</div>
+      <div class="rc-name">${rule.name}</div>
+      <div class="rc-seats${rule.isFeatured ? ' red' : ''}">${fmt(rule.seats)}</div>
+      <div class="rc-seats-label">Total House Seats</div>
+      <div class="rc-divider"></div>
+      <div class="rc-minis">
+        <div class="rc-mini">
+          <div class="rm-label">People / Rep</div>
+          <div class="rm-val">${fmt(rule.popPerSeat)}</div>
+        </div>
+        <div class="rc-mini">
+          <div class="rm-label">Your State Gets</div>
+          <div class="rm-val">${fmt(rule.stateSeats)} seats</div>
+        </div>
+      </div>
+      <div class="rc-scale-wrap">
+        <div class="rc-scale-label">Seats vs the 1910 standard (${fmt(LASTAPP_SEATS)})</div>
+        <div class="rc-scale-bar"><div class="rc-scale-fill${met ? ' met' : ''}" style="width:${barPct}%"></div></div>
+      </div>
+      <div class="rc-badge ${badgeClass(rule)}">${badgeText(rule)}</div>
+      <div class="rc-divider"></div>
+      <div class="rc-desc">${rule.desc}</div>
+    `;
+    container.appendChild(card);
+  });
+}
+
+function renderCountriesGrid() {
+  const grid = document.getElementById('countries-grid');
+  grid.innerHTML = '';
+  const medianNames = new Set([countriesSorted[N/2 - 1].name, countriesSorted[N/2].name]);
+
+  const withUS = [
+    ...countriesSorted,
+    { name: 'United States (current)', ratio: Math.round(US_POP / CURRENT_SEATS), isUS: true },
+  ].sort((a, b) => a.ratio - b.ratio);
+
+  withUS.forEach(c => {
+    const isMedian = !c.isUS && medianNames.has(c.name);
+    const row = document.createElement('div');
+    row.className = `country-row${isMedian ? ' is-median' : ''}`;
+    const label = isMedian ? `★ ${c.name}` : c.name;
+    row.innerHTML = `
+      <span class="cr-name">${label}</span>
+      <span class="${c.isUS ? 'cr-us' : 'cr-ratio'}">${fmt(c.ratio)}/rep${c.isUS ? ' ←' : ''}</span>
+    `;
+    grid.appendChild(row);
+  });
+}
+
+// ════════════════════════════════════════════════
+//  MAIN FLOW
+// ════════════════════════════════════════════════
+async function doSearch() {
+  const address = document.getElementById('addr-input').value.trim();
+  if (!address) return;
+
+  setUI('loading');
+  try {
+    const res = await fetch(`/api/district?q=${encodeURIComponent(address)}`);
+    const data = await res.json();
+    if (!res.ok || data.error) throw new Error(data.error || 'Lookup failed. Please try again.');
+
+    const { statefp, cdCode, lat, lng, matchedAddress, geojson, approxZip } = data;
+
+    // Render the data first so the map container has real dimensions.
+    renderHeader(statefp, cdCode, matchedAddress);
+    renderStats(statefp);
+    renderRuleCards(statefp);
+    setUI('results');
+
+    initOrResetMap(lat, lng);
+    const hasShape = geojson && geojson.features && geojson.features.length;
+    mapState.geojson = hasShape ? geojson : null;
+    mapState.center = [lng, lat];
+    mapState.fips = statefp;
+    mapState.currentSeats = stateSeatsFor(statefp, CURRENT_SEATS, Math.round(US_POP / CURRENT_SEATS));
+
+    if (hasShape) {
+      setBaseDistrict(geojson);
+      placeMarker(lat, lng);
+      buildSizeControls(statefp);   // also draws the default "Current (actual)" preview
+      if (approxZip) {
+        document.getElementById('map-note').textContent =
+          'Based on your ZIP centroid — ZIP codes can span multiple districts';
+      }
+    } else {
+      document.getElementById('size-controls').classList.add('hidden');
+      leafletMap.setView([lat, lng], 9);
+      placeMarker(lat, lng);
+      document.getElementById('map-note').textContent =
+        'District boundary unavailable — showing location only';
+    }
+    leafletMap.invalidateSize();
+
+    document.getElementById('results-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch (err) {
+    showError(err.message || 'Something went wrong. Please try again.');
+    setUI('error');
+  }
+}
+
+function setUI(state) {
+  document.getElementById('loading-wrap').classList.add('hidden');
+  document.getElementById('results-wrap').classList.add('hidden');
+  document.getElementById('error-box').classList.add('hidden');
+  const btn = document.getElementById('search-btn');
+  btn.disabled = false;
+
+  if (state === 'loading') {
+    document.getElementById('results-wrap').classList.add('hidden');
+    document.getElementById('loading-wrap').classList.remove('hidden');
+    btn.disabled = true;
+  } else if (state === 'results') {
+    document.getElementById('results-wrap').classList.remove('hidden');
+  }
+}
+
+function showError(msg) {
+  const el = document.getElementById('error-box');
+  el.textContent = msg;
+  el.classList.remove('hidden');
+}
+
+// ════════════════════════════════════════════════
+//  BOOT
+// ════════════════════════════════════════════════
+document.getElementById('search-btn').addEventListener('click', doSearch);
+document.getElementById('addr-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doSearch();
+});
+renderCountriesGrid();
+</script>
+</body>
+</html>
