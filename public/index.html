@@ -769,18 +769,23 @@ function currentDistrictPop(fips) {
 // Madison's proposed apportionment schedule (the never-ratified "Article the
 // First"): 1 seat per 30,000 up to 100 seats, then 1 per 40,000 up to 200, then
 // 1 per 50,000 up to 300 — i.e., the ratio rises 10,000 every 100 seats. We
-// extrapolate the same step (60k→400, 70k→500, …) and run it against today's
-// population to find the resulting House size.
+// extrapolate the same step (60k→400, 70k→500, …).
+//
+// The House grows in blocks of 100, adding the next block only once the
+// population warrants it in full. Each block n holds 100 × (20k + 10k·n) people,
+// so we keep adding 100-seat blocks while the population covers the next one.
 function madisonAlgorithmSeats() {
   let seats = 0, covered = 0;
-  while (covered < US_POP) {
-    seats++;
-    const phase = Math.floor((seats - 1) / 100) + 1; // 1, 2, 3, …
-    covered += 20000 + 10000 * phase;                // 30k, 40k, 50k, …
+  while (true) {
+    const phase = seats / 100 + 1;               // next block: phase 1, 2, 3, …
+    const blockPeople = 100 * (20000 + 10000 * phase); // 3.0M, 4.0M, 5.0M, …
+    if (covered + blockPeople > US_POP) break;   // population doesn't fill the next block
+    covered += blockPeople;
+    seats += 100;
   }
   return seats;
 }
-const MADISON_ALGO_SEATS = madisonAlgorithmSeats(); // ~2,337
+const MADISON_ALGO_SEATS = madisonAlgorithmSeats(); // 2,300
 
 // ════════════════════════════════════════════════
 //  RULES
@@ -822,7 +827,7 @@ function buildRules(fips) {
       id: 'madisonalgo', tag: "Madison's Schedule", tagClass: 'gold',
       name: "Madison's Algorithm", seats: MADISON_ALGO_SEATS,
       isCurrent: false, isFeatured: false,
-      desc: "Madison's proposed apportionment amendment grew the House in steps: 1 seat per 30,000 people up to 100 seats, then 1 per 40,000 up to 200, 1 per 50,000 up to 300 — the ratio rising 10,000 every 100 seats. Run that schedule against today's population and it lands at ~2,337 seats — almost exactly the global median.",
+      desc: "Madison's proposed apportionment amendment grew the House in blocks of 100: 1 seat per 30,000 people up to 100 seats, then 1 per 40,000 up to 200, 1 per 50,000 up to 300 — the ratio rising 10,000 every 100 seats. Adding a block only when population warrants it, today's count lands at 2,300 seats — close to the global median.",
     },
     {
       id: 'peer', tag: 'International Benchmark', tagClass: 'red',
