@@ -895,20 +895,37 @@ function drawActualPreview() {
   if (searchMarker) searchMarker.bringToFront();
 }
 
+// Tracts fetched for the current location, reused across pill clicks so flipping
+// between rules doesn't re-hit the network. Reset on each new search.
+let tractCache = { key: null, features: [], captured: 0 };
+
+function sumPop(features) {
+  return features.reduce((a, f) => a + (+f.properties.POP100 || 0), 0);
+}
+
 // Fetch tracts around the user (expanding the box until we capture enough people),
 // then greedily grow a compact, contiguous region to the target population.
 async function growDistrict(target) {
   const [lng, lat] = mapState.center;
-  let half = 0.07, features = [];
+  const key = `${lng},${lat}`;
+  let features;
 
-  for (let i = 0; i < 5; i++) {
-    const bbox = `${lng - half},${lat - half},${lng + half},${lat + half}`;
-    const res = await fetch(`/api/tracts?bbox=${bbox}&state=${mapState.fips}`);
-    const data = await res.json();
-    features = data.features || [];
-    const captured = features.reduce((a, f) => a + (+f.properties.POP100 || 0), 0);
-    if (captured >= target * 1.25 || features.length > 500) break;
-    half *= 1.8;
+  // Reuse the cached fetch if it already covers this target; otherwise (re)fetch,
+  // expanding the box, and cache the largest result for the next click.
+  if (tractCache.key === key && tractCache.captured >= target * 1.25) {
+    features = tractCache.features;
+  } else {
+    let half = 0.07;
+    features = [];
+    for (let i = 0; i < 5; i++) {
+      const bbox = `${lng - half},${lat - half},${lng + half},${lat + half}`;
+      const res = await fetch(`/api/tracts?bbox=${bbox}&state=${mapState.fips}`);
+      const data = await res.json();
+      features = data.features || [];
+      if (sumPop(features) >= target * 1.25 || features.length > 500) break;
+      half *= 1.8;
+    }
+    tractCache = { key, features, captured: sumPop(features) };
   }
   if (!features.length) return null;
 

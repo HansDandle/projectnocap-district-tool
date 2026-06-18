@@ -169,10 +169,13 @@ export async function tractsResponse(url) {
 
   let data;
   try {
+    // maxAllowableOffset generalizes geometry server-side (~80 m). Invisible at
+    // district zoom, but cuts the payload ~23x (910 KB -> 40 KB) and the client
+    // union from ~500 ms to ~70 ms.
     const t =
       `${TRACTS}?geometry=${bbox}&geometryType=esriGeometryEnvelope&inSR=4326` +
       `&spatialRel=esriSpatialRelIntersects&outFields=GEOID,POP100` +
-      `&returnGeometry=true&outSR=4326&f=geojson`;
+      `&returnGeometry=true&maxAllowableOffset=0.0008&outSR=4326&f=geojson`;
     const r = await fetch(t, {
       headers: { Referer: "https://tigerweb.geo.census.gov/" },
       signal: AbortSignal.timeout(15000),
