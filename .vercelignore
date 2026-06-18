@@ -1,0 +1,5 @@
+# Cloudflare-only files — not needed on Vercel
+src/
+wrangler.jsonc
+.wrangler/
+.wrangler-dev.log

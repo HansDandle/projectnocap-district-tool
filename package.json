@@ -2,6 +2,7 @@
   "name": "nocapcalc",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "description": "Project No Cap district apportionment calculator",
   "scripts": {
     "dev": "wrangler dev",

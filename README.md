@@ -18,10 +18,13 @@ Enter an address or ZIP code to see:
 
 - **Frontend:** a single static page (`public/index.html`) using Leaflet for the map and
   Turf.js for geometry.
-- **Backend:** a Cloudflare Worker (`src/index.js`) that proxies the U.S. Census services
-  (geocoder, TIGERweb district + tract geometry). The proxy exists because the Census
-  geocoder sends no CORS headers and TIGERweb requires a `Referer` header — neither works
-  from the browser directly.
+- **Backend:** two API endpoints that proxy the U.S. Census services (geocoder, TIGERweb
+  district + tract geometry). The proxy exists because the Census geocoder sends no CORS
+  headers and TIGERweb requires a `Referer` header — neither works from the browser directly.
+  The endpoint logic lives in `shared/api.js` and is wrapped by two thin adapters so it runs
+  unchanged on both platforms:
+  - `src/index.js` — Cloudflare Worker
+  - `api/district.js`, `api/tracts.js` — Vercel Edge Functions
 - **Apportionment** is computed in-browser with the real **Huntington–Hill** method, which
   reproduces the actual 2020 seat allocation exactly. District population is derived as
   `state population ÷ state seats` (the legal equal-population standard), so no extra
@@ -41,8 +44,22 @@ npm run dev      # wrangler dev — serves the page + API locally
 
 ## Deploy
 
+The repo deploys to either platform unchanged.
+
+**Cloudflare Workers**
+
 ```sh
-npm run deploy   # wrangler deploy
+npm run deploy   # wrangler deploy — serves page + API on one Worker
+```
+
+**Vercel**
+
+Import the repo in Vercel (no build step needed). `vercel.json` serves `public/` as the
+static site and Vercel turns `api/*.js` into Edge Functions automatically. Or from the CLI:
+
+```sh
+vercel        # preview
+vercel --prod # production
 ```
 
 ## Data sources
