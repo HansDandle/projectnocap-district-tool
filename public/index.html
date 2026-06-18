@@ -965,28 +965,43 @@ async function growDistrict(target) {
   return { picked, pop };
 }
 
-// Render the grown region: faint filled tracts + a crisp dissolved outer boundary.
+// Drop interior rings (holes). Generalizing each tract independently leaves
+// tiny gaps between neighbors that survive the union as holes — those render
+// as spurious inner lines. We only want the outer boundary of the district.
+function stripHoles(geom) {
+  if (geom.type === 'Polygon') {
+    geom.coordinates = [geom.coordinates[0]];
+  } else if (geom.type === 'MultiPolygon') {
+    geom.coordinates = geom.coordinates.map(poly => [poly[0]]);
+  }
+  return geom;
+}
+
+// Render the grown region as one dissolved, filled district with a single outline.
 function drawGrownPreview(picked) {
   clearPreview();
-  const group = L.layerGroup();
+  let layer = null;
 
-  const fc = { type: 'FeatureCollection', features: picked.map(p => p.f) };
-  L.geoJSON(fc, {
-    style: { color: '#C8102E', weight: 0.5, opacity: 0.25, fillColor: '#C8102E', fillOpacity: 0.16 }
-  }).addTo(group);
-
-  // Dissolve all tracts into one outline in a single pass (fast, clean boundary);
-  // fall back silently to just the fills if the union ever fails.
+  // Dissolve all tracts into one shape in a single pass (fast, clean boundary).
   try {
     const merged = turf.union(turf.featureCollection(picked.map(p => p.f)));
     if (merged) {
-      L.geoJSON(merged, {
-        style: { color: '#C8102E', weight: 2.5, fill: false }
-      }).addTo(group);
+      stripHoles(merged.geometry);
+      layer = L.geoJSON(merged, {
+        style: { color: '#C8102E', weight: 2.5, fillColor: '#C8102E', fillOpacity: 0.16 }
+      });
     }
-  } catch (_) { /* fills alone still read as a region */ }
+  } catch (_) { /* fall back below */ }
 
-  previewLayer = group.addTo(leafletMap);
+  // Fallback if the union ever fails: fill the tracts with no internal strokes.
+  if (!layer) {
+    const fc = { type: 'FeatureCollection', features: picked.map(p => p.f) };
+    layer = L.geoJSON(fc, {
+      style: { color: '#C8102E', weight: 0, fillColor: '#C8102E', fillOpacity: 0.18 }
+    });
+  }
+
+  previewLayer = layer.addTo(leafletMap);
   if (searchMarker) searchMarker.bringToFront();
 }
 
