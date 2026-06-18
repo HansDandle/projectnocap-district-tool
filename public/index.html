@@ -886,12 +886,22 @@ function clearPreview() {
   if (previewLayer) { leafletMap.removeLayer(previewLayer); previewLayer = null; }
 }
 
+// One district shape rendered for maximum visibility regardless of color vision:
+// a translucent red fill, a dark casing, and a bright white line on top. The
+// outline reads by luminance contrast (light line / dark halo), not hue, so it
+// stays clearly visible for color-blind users on the dark map.
+function styledDistrictLayer(geojson) {
+  const group = L.layerGroup();
+  L.geoJSON(geojson, { style: { stroke: false, fillColor: '#C8102E', fillOpacity: 0.22 } }).addTo(group);
+  L.geoJSON(geojson, { style: { color: '#000000', weight: 6, opacity: 0.55, fill: false } }).addTo(group);
+  L.geoJSON(geojson, { style: { color: '#ffffff', weight: 2.5, opacity: 1, fill: false } }).addTo(group);
+  return group;
+}
+
 // Draw the real district outline (used for the "Current (actual)" pill).
 function drawActualPreview() {
   clearPreview();
-  previewLayer = L.geoJSON(mapState.geojson, {
-    style: { color: '#C8102E', weight: 2, fillColor: '#C8102E', fillOpacity: 0.15 }
-  }).addTo(leafletMap);
+  previewLayer = styledDistrictLayer(mapState.geojson).addTo(leafletMap);
   if (searchMarker) searchMarker.bringToFront();
 }
 
@@ -965,43 +975,53 @@ async function growDistrict(target) {
   return { picked, pop };
 }
 
-// Drop interior rings (holes). Generalizing each tract independently leaves
-// tiny gaps between neighbors that survive the union as holes — those render
-// as spurious inner lines. We only want the outer boundary of the district.
-function stripHoles(geom) {
-  if (geom.type === 'Polygon') {
-    geom.coordinates = [geom.coordinates[0]];
-  } else if (geom.type === 'MultiPolygon') {
-    geom.coordinates = geom.coordinates.map(poly => [poly[0]]);
+function ringArea(ring) {
+  let s = 0;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    s += (ring[j][0] + ring[i][0]) * (ring[j][1] - ring[i][1]);
   }
-  return geom;
+  return Math.abs(s / 2);
+}
+
+// Reduce a union result to a single clean outer ring. Generalizing each tract
+// independently leaves tiny gaps between neighbors, so the union can come back
+// as several disjoint parts and/or with interior holes — both render as spurious
+// inner lines. Keep only the largest part and drop its holes.
+function cleanUnion(feature) {
+  let g = feature.geometry;
+  if (g.type === 'MultiPolygon') {
+    let best = g.coordinates[0], bestArea = -1;
+    for (const poly of g.coordinates) {
+      const a = ringArea(poly[0]);
+      if (a > bestArea) { bestArea = a; best = poly; }
+    }
+    g = { type: 'Polygon', coordinates: best };
+    feature.geometry = g;
+  }
+  g.coordinates = [g.coordinates[0]]; // outer ring only
+  return feature;
 }
 
 // Render the grown region as one dissolved, filled district with a single outline.
 function drawGrownPreview(picked) {
   clearPreview();
-  let layer = null;
+  let shape = null;
 
-  // Dissolve all tracts into one shape in a single pass (fast, clean boundary).
+  // Dissolve all tracts into one shape in a single pass, then clean it up.
   try {
     const merged = turf.union(turf.featureCollection(picked.map(p => p.f)));
-    if (merged) {
-      stripHoles(merged.geometry);
-      layer = L.geoJSON(merged, {
-        style: { color: '#C8102E', weight: 2.5, fillColor: '#C8102E', fillOpacity: 0.16 }
-      });
-    }
+    if (merged) shape = cleanUnion(merged);
   } catch (_) { /* fall back below */ }
 
-  // Fallback if the union ever fails: fill the tracts with no internal strokes.
-  if (!layer) {
+  if (shape) {
+    previewLayer = styledDistrictLayer(shape).addTo(leafletMap);
+  } else {
+    // Fallback if the union ever fails: fill the tracts with no internal strokes.
     const fc = { type: 'FeatureCollection', features: picked.map(p => p.f) };
-    layer = L.geoJSON(fc, {
-      style: { color: '#C8102E', weight: 0, fillColor: '#C8102E', fillOpacity: 0.18 }
-    });
+    previewLayer = L.geoJSON(fc, {
+      style: { stroke: false, fillColor: '#C8102E', fillOpacity: 0.2 }
+    }).addTo(leafletMap);
   }
-
-  previewLayer = layer.addTo(leafletMap);
   if (searchMarker) searchMarker.bringToFront();
 }
 
