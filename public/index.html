@@ -554,7 +554,7 @@
 <section class="hero">
   <div class="hero-eyebrow">Interactive District Tool</div>
   <h1>Your District.<br/>Different Rules.</h1>
-  <p>Enter your address or ZIP code to see your current Congressional district — and what it would look like under seven different apportionment models.</p>
+  <p>Enter your address or ZIP code to see your current Congressional district — and what it would look like under eight different apportionment models.</p>
   <div class="search-wrap">
     <input
       type="text"
@@ -766,6 +766,22 @@ function currentDistrictPop(fips) {
   return Math.round(STATE_POPS[fips] / huntingtonHill(CURRENT_SEATS)[fips]);
 }
 
+// Madison's proposed apportionment schedule (the never-ratified "Article the
+// First"): 1 seat per 30,000 up to 100 seats, then 1 per 40,000 up to 200, then
+// 1 per 50,000 up to 300 — i.e., the ratio rises 10,000 every 100 seats. We
+// extrapolate the same step (60k→400, 70k→500, …) and run it against today's
+// population to find the resulting House size.
+function madisonAlgorithmSeats() {
+  let seats = 0, covered = 0;
+  while (covered < US_POP) {
+    seats++;
+    const phase = Math.floor((seats - 1) / 100) + 1; // 1, 2, 3, …
+    covered += 20000 + 10000 * phase;                // 30k, 40k, 50k, …
+  }
+  return seats;
+}
+const MADISON_ALGO_SEATS = madisonAlgorithmSeats(); // ~2,337
+
 // ════════════════════════════════════════════════
 //  RULES
 // ════════════════════════════════════════════════
@@ -803,16 +819,22 @@ function buildRules(fips) {
       desc: "1910 was the last time the House actually grew with the country, before the 1929 cap. The average district then held about 210,000 people. Matching that ratio today would seat ~1,578 members.",
     },
     {
+      id: 'madisonalgo', tag: "Madison's Schedule", tagClass: 'gold',
+      name: "Madison's Algorithm", seats: MADISON_ALGO_SEATS,
+      isCurrent: false, isFeatured: false,
+      desc: "Madison's proposed apportionment amendment grew the House in steps: 1 seat per 30,000 people up to 100 seats, then 1 per 40,000 up to 200, 1 per 50,000 up to 300 — the ratio rising 10,000 every 100 seats. Run that schedule against today's population and it lands at ~2,337 seats — almost exactly the global median.",
+    },
+    {
       id: 'peer', tag: 'International Benchmark', tagClass: 'red',
       name: 'Global Median', seats: Math.round(US_POP / MEDIAN_RATIO),
       isCurrent: false, isFeatured: true,
       desc: `Median people-per-seat across ${N} peer democracies with bicameral legislatures (e.g., Canada ~113k, UK ~104k, Germany ~114k). The U.S. is a dramatic outlier at ~762k.`,
     },
     {
-      id: 'madison', tag: "Founders' Intent", tagClass: 'gold',
-      name: "Madison's 1:30,000", seats: Math.round(US_POP / 30000),
+      id: 'washington', tag: "Founders' Intent", tagClass: 'gold',
+      name: "Washington's 30k", seats: Math.round(US_POP / 30000),
       isCurrent: false, isFeatured: false,
-      desc: "George Washington's only intervention at the Constitutional Convention was a warning: don't let districts exceed 30,000 people. This rule restores the Founders' original ratio.",
+      desc: "George Washington's only substantive intervention at the Constitutional Convention was a warning: don't let districts exceed 30,000 people. The 1:30,000 floor was written into Article I. Restoring that ratio today is the maximalist case.",
     },
   ];
 
@@ -944,33 +966,21 @@ async function growDistrict(target) {
     let c;
     try { c = turf.centroid(f).geometry.coordinates; }
     catch (_) { const b = turf.bbox(f); c = [(b[0] + b[2]) / 2, (b[1] + b[3]) / 2]; }
-    return { f, cx: c[0], cy: c[1], pop: +f.properties.POP100 || 0, used: false };
+    return { f, cx: c[0], cy: c[1], pop: +f.properties.POP100 || 0 };
   });
 
-  // Seed with the tract nearest the user, then annex the nearest unused tract
-  // to the growing cluster until we reach the target population.
-  let seed = items[0], best = Infinity;
+  // Centered on the user: take the tracts closest to their exact location until
+  // we reach the target population, so the user sits at the middle of the
+  // district rather than at an edge.
+  items.sort((a, b) =>
+    ((a.cx - lng) ** 2 + (a.cy - lat) ** 2) - ((b.cx - lng) ** 2 + (b.cy - lat) ** 2)
+  );
+  const picked = [];
+  let pop = 0;
   for (const it of items) {
-    const d = (it.cx - lng) ** 2 + (it.cy - lat) ** 2;
-    if (d < best) { best = d; seed = it; }
-  }
-  seed.used = true;
-  const picked = [seed];
-  let pop = seed.pop;
-
-  while (pop < target) {
-    let cand = null, cbest = Infinity;
-    for (const it of items) {
-      if (it.used) continue;
-      let d = Infinity;
-      for (const p of picked) {
-        const dd = (it.cx - p.cx) ** 2 + (it.cy - p.cy) ** 2;
-        if (dd < d) d = dd;
-      }
-      if (d < cbest) { cbest = d; cand = it; }
-    }
-    if (!cand) break;
-    cand.used = true; picked.push(cand); pop += cand.pop;
+    picked.push(it);
+    pop += it.pop;
+    if (pop >= target) break;
   }
   return { picked, pop };
 }
