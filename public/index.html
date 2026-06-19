@@ -383,7 +383,7 @@
     .rc-badge.up { border-color: #1e3a1e; color: var(--green); }
     .rc-badge.way-up { border-color: #2a3a00; color: #8bc34a; }
 
-    /* Scale bar — measured against the 1910 standard */
+    /* Scale bar — measured against the global median */
     .rc-scale-wrap { margin-bottom: 14px; }
     .rc-scale-label {
       font-size: 9px;
@@ -657,7 +657,6 @@
 const US_POP = 331449281;   // 2020 apportionment population (50 states + DC)
 const WY_POP = 576851;      // Wyoming, the least-populous state (2020)
 const LASTAPP_POP = 210000; // ~avg district at the 1911 reapportionment (1910 census ÷ 435), the last time the House grew
-const LASTAPP_SEATS = Math.floor(331449281 / LASTAPP_POP); // 1,578 — the scale-bar benchmark
 const CURRENT_SEATS = 435;
 
 // 2020 Census state populations (resident), keyed by FIPS code (zero-padded 2-digit)
@@ -724,6 +723,7 @@ const N = countriesSorted.length; // 22 — even number
 const MEDIAN_RATIO = Math.round(
   (countriesSorted[N/2 - 1].ratio + countriesSorted[N/2].ratio) / 2
 );
+const GLOBAL_MEDIAN_SEATS = Math.round(331449281 / MEDIAN_RATIO); // ~2,350 — scale-bar benchmark
 
 // ════════════════════════════════════════════════
 //  APPORTIONMENT (Huntington–Hill, the real method)
@@ -771,21 +771,23 @@ function currentDistrictPop(fips) {
 // 1 per 50,000 up to 300 — i.e., the ratio rises 10,000 every 100 seats. We
 // extrapolate the same step (60k→400, 70k→500, …).
 //
-// The House grows in blocks of 100, adding the next block only once the
-// population warrants it in full. Each block n holds 100 × (20k + 10k·n) people,
-// so we keep adding 100-seat blocks while the population covers the next one.
+// The House grows in blocks of 100, but each block raises the ratio for the
+// WHOLE House, not just the new seats. To seat 100·k members the entire
+// population must be covered at that block's ratio — pop ≥ 100·k × (20k + 10k·k).
+// (The earlier, incremental version charged only each new block at its ratio,
+// which let cheap early seats inflate the count.)
 function madisonAlgorithmSeats() {
-  let seats = 0, covered = 0;
+  let seats = 0;
   while (true) {
     const phase = seats / 100 + 1;               // next block: phase 1, 2, 3, …
-    const blockPeople = 100 * (20000 + 10000 * phase); // 3.0M, 4.0M, 5.0M, …
-    if (covered + blockPeople > US_POP) break;   // population doesn't fill the next block
-    covered += blockPeople;
-    seats += 100;
+    const ratio = 20000 + 10000 * phase;         // 30k, 40k, 50k, …
+    const nextSeats = seats + 100;
+    if (US_POP < nextSeats * ratio) break;       // pop can't cover the whole House at this ratio
+    seats = nextSeats;
   }
   return seats;
 }
-const MADISON_ALGO_SEATS = madisonAlgorithmSeats(); // 2,300
+const MADISON_ALGO_SEATS = madisonAlgorithmSeats(); // 1,700
 
 // ════════════════════════════════════════════════
 //  RULES
@@ -827,7 +829,7 @@ function buildRules(fips) {
       id: 'madisonalgo', tag: "Madison's Schedule", tagClass: 'gold',
       name: "Madison's Algorithm", seats: MADISON_ALGO_SEATS,
       isCurrent: false, isFeatured: false,
-      desc: "Madison's proposed apportionment amendment grew the House in blocks of 100: 1 seat per 30,000 people up to 100 seats, then 1 per 40,000 up to 200, 1 per 50,000 up to 300 — the ratio rising 10,000 every 100 seats. Adding a block only when population warrants it, today's count lands at 2,300 seats — close to the global median.",
+      desc: "Madison's proposed apportionment amendment grew the House in blocks of 100: 1 seat per 30,000 people up to 100 seats, then 1 per 40,000 up to 200, 1 per 50,000 up to 300 — the ratio rising 10,000 every 100 seats. Each new block raises the ratio for the whole House, so a block is added only once the population covers every seat at that ratio. Today that lands at 1,700 seats.",
     },
     {
       id: 'peer', tag: 'International Benchmark', tagClass: 'red',
@@ -1123,7 +1125,7 @@ function renderRuleCards(fips) {
   container.innerHTML = '';
 
   rules.forEach(rule => {
-    const pct = Math.round((rule.seats / LASTAPP_SEATS) * 100);
+    const pct = Math.round((rule.seats / GLOBAL_MEDIAN_SEATS) * 100);
     const barPct = Math.min(100, pct);
     const met = pct >= 100 && !rule.isCurrent;
     const card = document.createElement('div');
@@ -1145,7 +1147,7 @@ function renderRuleCards(fips) {
         </div>
       </div>
       <div class="rc-scale-wrap">
-        <div class="rc-scale-label">Seats vs the 1910 standard (${fmt(LASTAPP_SEATS)})</div>
+        <div class="rc-scale-label">Seats vs the global median (${fmt(GLOBAL_MEDIAN_SEATS)})</div>
         <div class="rc-scale-bar"><div class="rc-scale-fill${met ? ' met' : ''}" style="width:${barPct}%"></div></div>
       </div>
       <div class="rc-badge ${badgeClass(rule)}">${badgeText(rule)}</div>
